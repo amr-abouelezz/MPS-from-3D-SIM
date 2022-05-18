@@ -1,0 +1,29 @@
+// first line should be background for subtraction
+setBatchMode(true);
+input = "/input folder path/";
+ROI= "/ROIs folder path/";
+output = "/output folder path/";
+list = getFileList(input);
+function action(input, output, filename){
+        open(input + filename);
+//run("Sharpen", "stack");
+run("ROI Manager...");
+name=replace(filename,".tif","");
+roiManager("Open", ROI + name + '.zip');
+numROI = roiManager("Count");
+run("Clear Results");
+  for (j=0; j<numROI; j++){
+ roiManager("Select", j);
+ Stack.setChannel(1);
+profile = getProfile();
+  for (i=0; i<profile.length; i++)
+      setResult(j, i, profile[i]);
+ // Save as spreadsheet compatible text file
+  path = output+name+".csv";
+  saveAs("Results", path);
+      }
+       roiManager("reset");
+      }
+for (h = 0; h < list.length; h++)
+        action(input, output, list[h]);
+run("Close All");
