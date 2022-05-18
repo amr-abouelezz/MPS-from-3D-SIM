@@ -1,0 +1,83 @@
+function [distnorm] = SIMprofiles (~)
+%% build a list of file names with absolute path
+fPath = uigetdir('*.csv', 'Select directory containing csv files');
+if fPath==0, error('no folder selected'), end
+fNames = dir( fullfile(fPath,'*.csv') );
+name = {fNames.name};
+fNames = strcat(fPath, filesep, {fNames.name});
+counter=1;
+distraw=NaN(50,1);
+distnorm=NaN(50,1);
+autocurve_raw=NaN(200,1);
+autocurve_norm=NaN(200,1);
+autocurve_rawgauss=NaN(200,1);
+autocurve_normgauss=NaN(200,1);
+acf_lags_raw=NaN(20,1);
+acf_lags_norm=NaN(20,1);
+acf_lags_rawgauss=NaN(20,1);
+acf_lags_normgauss=NaN(20,1);
+%% process each file
+for i=1:length(fNames)
+profiles=csvread(fNames{i});
+[~,n]=size(profiles);
+for k=1:(n-2)
+%% read the data
+bgd=mean(profiles(2:end,2)); % background
+y=profiles(2:end,(k+2));
+y=nonzeros(y)-bgd;
+x=(0:40:((length(y)-1)*40))';
+%% locally normalise peaks
+normy=localnormalize(y,2,1);
+%% find peaks and note their locations
+[~,locs] = findpeaks (y,x); % peaks in raw profile
+[~,norm_locs] = findpeaks (normy,x); % peaks in normalised profile
+%% find distances between peaks
+diflocs=diff(locs);
+diflocs=[diflocs;NaN(50-(length(diflocs)),1)];
+difnorm_locs=diff(norm_locs);
+difnorm_locs=[difnorm_locs;NaN(50-(length(difnorm_locs)),1)];
+distraw(:,counter)=diflocs;
+distnorm(:,counter)=difnorm_locs;
+%% create standardised gaussians from peaks
+rawgauss =  exp(-((x-locs(1))/0.025).^2); % for raw peaks
+for j = 2:length(locs)
+rawgauss = rawgauss + exp(-((x-locs(j))/0.025).^2);
+end
+normgauss =  exp(-((x-norm_locs(1))/0.025).^2); % for normalised peaks
+for j = 2:length(norm_locs)
+normgauss = normgauss + exp(-((x-norm_locs(j))/0.025).^2);
+end
+%% autocorrelations
+nLags=(length(y))-1;
+[acf_raw, lags, bounds]=autocorr(y,nLags);
+[acf_norm, lags, bounds]=autocorr(normy,nLags);
+[acf_rawgauss, lags, bounds]=autocorr(rawgauss,nLags);
+[acf_normgauss, lags, bounds]=autocorr(normgauss,nLags);
+lags=lags*40; %pixel size is 40 nm
+upperbound=max(bounds);
+[~,locs_raw_acf]=findpeaks(acf_raw,lags,'MinPeakHeight',upperbound);
+[~,locs_norm_acf]=findpeaks(acf_norm,lags,'MinPeakHeight',upperbound);
+[~,locs_rawgauss_acf]=findpeaks(acf_rawgauss,lags,'MinPeakHeight',upperbound);
+[~,locs_normgauss_acf]=findpeaks(acf_normgauss,lags,'MinPeakHeight',upperbound);
+%% autocorr readouts
+acf_raw=[acf_raw;NaN(200-(length(acf_raw)),1)];
+acf_norm=[acf_norm;NaN(200-(length(acf_norm)),1)];
+acf_rawgauss=[acf_rawgauss;NaN(200-(length(acf_rawgauss)),1)];
+acf_normgauss=[acf_normgauss;NaN(200-(length(acf_normgauss)),1)];
+autocurve_raw(:,counter)=acf_raw;
+autocurve_norm(:,counter)=acf_norm;
+autocurve_rawgauss(:,counter)=acf_rawgauss;
+autocurve_normgauss(:,counter)=acf_normgauss;
+locs_raw_acf=[locs_raw_acf;NaN(20-(length(locs_raw_acf)),1)];
+locs_norm_acf=[locs_norm_acf;NaN(20-(length(locs_norm_acf)),1)];
+locs_rawgauss_acf=[locs_rawgauss_acf;NaN(20-(length(locs_rawgauss_acf)),1)];
+locs_normgauss_acf=[locs_normgauss_acf;NaN(20-(length(locs_normgauss_acf)),1)];
+acf_lags_raw(:,counter)=locs_raw_acf;
+acf_lags_norm(:,counter)=locs_norm_acf;
+acf_lags_rawgauss(:,counter)=locs_rawgauss_acf;
+acf_lags_normgauss(:,counter)=locs_normgauss_acf;
+profile_names{1,counter}=[name{1,i},num2str(k)];
+counter=counter+1;
+end
+end
+%normdist,rawdist
